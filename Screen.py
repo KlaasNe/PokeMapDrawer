@@ -1,6 +1,7 @@
 import os
 
 import Settings
+import Map
 from Colors import *
 from Functions import *
 
@@ -42,17 +43,20 @@ class Screen:
     def draw_vline(self, x, y1, y2, color):
         pygame.draw.line(self.surface, color, (x, y1), (x, y2))
 
-    def draw_cursor(self, x_off, y_off, color, brush_size=1):
+    def draw_cursor(self, x_off, y_off, color, brush=1):
         mx, my = pygame.mouse.get_pos()
-        x = (mx // 16 * 16) - 3
-        y = (my // 16 * 16) - 3
-        pygame.draw.rect(self.surface, color, (x, y, 16, 16), 1)
+        x = ((mx + 3 - x_off % 16) // 16 * 16) - 3 + x_off % 16
+        y = ((my + 3 - y_off % 16) // 16 * 16) - 3 + y_off % 16
+        pygame.draw.rect(self.surface, color, (x, y, 16 * brush, 16 * brush), 1)
 
 
 def main():
     window = Screen(BLACK)
+    world = Map.Map(40, 30)
     running = True
     dragging = False
+    brush_size = 2
+    mode = "drag"
     x_offset, y_offset = 0, 0
     m_start_x, m_start_y = 0, 0
     while running:
@@ -65,8 +69,12 @@ def main():
                 if event.key == key("r"):
                     x_offset = 0
                     y_offset = 0
+                if event.key == key("d"):
+                    mode = "drag"
+                if event.key == key("p"):
+                    mode = "paint"
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if not dragging:
+                if not dragging and mode == "drag":
                     dragging = True
                     m_start_x, m_start_y = pygame.mouse.get_pos()
             if event.type == pygame.MOUSEMOTION:
@@ -80,7 +88,8 @@ def main():
                 dragging = False
 
         window.draw_grid(60, 60, 80, 60, x_offset, y_offset, 40, 30)
-        window.draw_cursor(x_offset, y_offset, RED)
+        if mode == "paint":
+            window.draw_cursor(x_offset, y_offset, RED, brush_size)
         pygame.display.flip()
 
 
