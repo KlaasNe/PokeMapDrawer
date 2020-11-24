@@ -1,7 +1,7 @@
 import os
 
-import Settings
 import Map
+import Settings
 from Colors import *
 from Functions import *
 
@@ -45,8 +45,9 @@ class Screen:
 
     def draw_cursor(self, x_off, y_off, color, brush=1):
         mx, my = pygame.mouse.get_pos()
-        x = ((mx + 3 - x_off % 16) // 16 * 16) - 3 + x_off % 16
-        y = ((my + 3 - y_off % 16) // 16 * 16) - 3 + y_off % 16
+        b_cor = (brush - 1) % 2 * 8 + ((brush - 1) // 2) * 16
+        x = ((mx + 3 - x_off % 16 - b_cor) // 16 * 16) - 3 + x_off % 16
+        y = ((my + 3 - y_off % 16 - b_cor) // 16 * 16) - 3 + y_off % 16
         pygame.draw.rect(self.surface, color, (x, y, 16 * brush, 16 * brush), 1)
 
 
@@ -86,6 +87,14 @@ def main():
                     m_start_x, m_start_y = pygame.mouse.get_pos()
             if event.type == pygame.MOUSEBUTTONUP:
                 dragging = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if mode == "paint":
+                    if event.button == 4:
+                        brush_size += 1
+                    elif event.button == 5:
+                        brush_size -= 1
+                    if brush_size <= 0:
+                        brush_size = 1
 
         window.draw_grid(60, 60, 80, 60, x_offset, y_offset, 40, 30)
         if mode == "paint":
