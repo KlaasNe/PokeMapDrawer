@@ -13,7 +13,7 @@ class Screen:
         self.w = Settings.SCREEN_WIDTH
         self.h = Settings.SCREEN_HEIGHT
         self.fs = Settings.FULLSCREEN
-        self.surface = pygame.display.set_mode((self.w, self.h))
+        self.surface = pygame.display.set_mode((self.w, self.h), pygame.FULLSCREEN)
         self.map = Map.Map(40, 30)
         pygame.display.init()
         pygame.display.set_caption("PokeMapDrawer")
@@ -51,7 +51,7 @@ class Screen:
         y = ((my + 3 - y_off % 16 - b_cor) // 16 * 16) - 3 + y_off % 16
         pygame.draw.rect(self.surface, color, (x, y, 16 * brush, 16 * brush), 1)
 
-    def change_tile_height(self, x_pos, y_pos, x_off, y_off, brush, lift):
+    def change_tile_height(self, x_pos, y_pos, x_off, y_off, brush, lift, relative=-1):
         mx, my = pygame.mouse.get_pos()
         b_cor = (brush - 1) % 2 * 8 + ((brush - 1) // 2) * 16
         x = ((mx + 3 - x_off % 16 - b_cor) // 16 * 16) - 3 + x_off % 16
@@ -59,9 +59,19 @@ class Screen:
         for y_tile in range(brush):
             for x_tile in range(brush):
                 try:
-                    self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] += lift
+                    if relative == -1 or self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] == relative:
+                        self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] += lift
                 except IndexError:
                     pass
+
+    def get_tile_height_under_mouse(self, x_pos, y_pos, x_off, y_off):
+        mx, my = pygame.mouse.get_pos()
+        x = ((mx + 3 - x_off % 16) // 16 * 16) - 3 + x_off % 16
+        y = ((my + 3 - y_off % 16) // 16 * 16) - 3 + y_off % 16
+        try:
+            return self.map.tile_height_info[(y - y_off - y_pos) // 16][(x - x_off - x_pos) // 16]
+        except IndexError:
+            return -1
 
     def draw_height_map(self, x_pos, y_pos, x_size, y_size, x_off, y_off):
         heights = pygame.image.load(os.path.join("img", "heights.png"))
@@ -132,7 +142,7 @@ class Screen:
                 return "hi", 4 + (5 * hill_type), 1
             if hills_around[1] == -1 and hills_around[5] == -1:
                 return "hi", 2 + (5 * hill_type), 1
-            return -1
+            return -2
 
         hills = pygame.image.load(os.path.join("img", "hills.png"))
         plants = pygame.image.load(os.path.join("img", "nature.png"))
@@ -152,7 +162,7 @@ class Screen:
                         if height > 9:
                             self.map.tile_height_info[y][x] = 9
                         tile_coo = define_hill_edge_texture(x, y)
-                        if tile_coo != -1:
+                        if tile_coo != -1 and tile_coo != -2:
                             tile_x, tile_y = tile_coo[1], tile_coo[2]
                             self.surface.blit(hills, (blit_x, blit_y), (tile_x * 16, tile_y * 16, 16, 16))
                         else:
@@ -224,7 +234,7 @@ def main():
                 if event.key == key("d"):
                     mode = "drag"
                 if event.key == key("p"):
-                    mode = "paint"
+                    mode = "hill_paint"
                 if event.key == key("m"):
                     vis = "m"
                 if event.key == key("h"):
@@ -232,10 +242,12 @@ def main():
                 if event.key == key("s"):
                     window.smooth_height()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if not dragging and mode == "drag":
+                if not dragging:
                     dragging = True
-                    m_start_x, m_start_y = pygame.mouse.get_pos()
-                if mode == "paint":
+                    if mode == "drag":
+                        m_start_x, m_start_y = pygame.mouse.get_pos()
+                if mode == "hill_paint":
+                    drag_height = window.get_tile_height_under_mouse(draw_window_x, draw_window_y, x_offset, y_offset)
                     if event.button == 1:
                         window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, 1)
                         window.smooth_height(down=False)
@@ -244,15 +256,20 @@ def main():
                         window.smooth_height(down=True)
             if event.type == pygame.MOUSEMOTION:
                 if dragging:
-                    end_x, end_y = pygame.mouse.get_pos()
-                    x_off_delta, y_off_delta = end_x - m_start_x, end_y - m_start_y
-                    x_offset += x_off_delta
-                    y_offset += y_off_delta
-                    m_start_x, m_start_y = pygame.mouse.get_pos()
+                    if mode == "drag":
+                        end_x, end_y = pygame.mouse.get_pos()
+                        x_off_delta, y_off_delta = end_x - m_start_x, end_y - m_start_y
+                        x_offset += x_off_delta
+                        y_offset += y_off_delta
+                        m_start_x, m_start_y = pygame.mouse.get_pos()
+                    elif mode == "hill_paint":
+                        if window.get_tile_height_under_mouse(draw_window_x, draw_window_y, x_offset, y_offset) <= drag_height + 1:
+                            window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, 1, drag_height)
+                            window.smooth_height(down=False)
             if event.type == pygame.MOUSEBUTTONUP:
                 dragging = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if mode == "paint":
+                if mode == "hill_paint":
                     if event.button == 4:
                         brush_size += 1
                     elif event.button == 5:
@@ -265,7 +282,7 @@ def main():
             window.draw_mountains(draw_window_x, draw_window_y, 80, 60, x_offset, y_offset, 0)
         elif vis == "heights":
             window.draw_height_map(draw_window_x, draw_window_y, 80, 60, x_offset, y_offset)
-        if mode == "paint":
+        if mode == "hill_paint":
             window.draw_cursor(x_offset, y_offset, RED, brush_size)
         window.draw_black_border(draw_window_x, draw_window_y, 80, 60)
         pygame.display.flip()
