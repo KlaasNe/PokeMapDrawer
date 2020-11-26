@@ -4,7 +4,6 @@ import Map
 import Settings
 from Colors import *
 from Functions import *
-from random import randint
 
 
 class Screen:
@@ -14,7 +13,7 @@ class Screen:
         self.w = Settings.SCREEN_WIDTH
         self.h = Settings.SCREEN_HEIGHT
         self.fs = Settings.FULLSCREEN
-        self.surface = pygame.display.set_mode((self.w, self.h), pygame.FULLSCREEN)
+        self.surface = pygame.display.set_mode((self.w, self.h))
         self.map = Map.Map(40, 30)
         pygame.display.init()
         pygame.display.set_caption("PokeMapDrawer")
@@ -106,33 +105,33 @@ class Screen:
 
             # using the array of relative heights, this calculates the sprite for the hill texture
             hills_around = get_hills_around_tile()
-            if self.map.tile_height_info[y][x] < 2: return -1
-            elif hills_around[3] == 0 and hills_around[6] == -1 and hills_around[7] == 0:
-                return 0 + (5 * hill_type), 1
-            elif hills_around[5] == 0 and hills_around[7] == 0 and hills_around[8] == -1:
-                return 0 + (5 * hill_type), 2
-            elif hills_around[0] == -1 and hills_around[1] == 0 and hills_around[3] == 0:
-                return 3 + (5 * hill_type), 0
-            elif hills_around[1] == 0 and hills_around[2] == -1 and hills_around[5] == 0:
-                return 3 + (5 * hill_type), 0
-            elif hills_around[1] == 0 and hills_around[3] == 0 and hills_around[5] == 0 and hills_around[7] == 0:
+            if self.map.tile_height_info[y][x] < 1: return -1
+            if hills_around[3] == 0 and hills_around[6] == -1 and hills_around[7] == 0:
+                return "hi", 0 + (5 * hill_type), 1
+            if hills_around[5] == 0 and hills_around[7] == 0 and hills_around[8] == -1:
+                return "hi", 0 + (5 * hill_type), 2
+            if hills_around[0] == -1 and hills_around[1] == 0 and hills_around[3] == 0:
+                return "hi", 3 + (5 * hill_type), 0
+            if hills_around[1] == 0 and hills_around[2] == -1 and hills_around[5] == 0:
+                return "hi", 3 + (5 * hill_type), 0
+            if hills_around[1] == 0 and hills_around[3] == 0 and hills_around[5] == 0 and hills_around[7] == 0:
                 return -1
-            elif hills_around[1] == 0 and hills_around[3] == -1 and hills_around[7] == 0:
-                return 1 + (5 * hill_type), 0
-            elif hills_around[3] == 0 and hills_around[5] == 0 and hills_around[7] == -1:
-                return 4 + (5 * hill_type), 0
-            elif hills_around[1] == 0 and hills_around[5] == -1 and hills_around[7] == 0:
-                return 2 + (5 * hill_type), 0
-            elif hills_around[1] == -1 and hills_around[3] == 0 and hills_around[5] == 0:
-                return 3 + (5 * hill_type), 0
-            elif hills_around[1] == -1 and hills_around[3] == -1:
-                return 1 + (5 * hill_type), 1
-            elif hills_around[3] == -1 and hills_around[7] == -1:
-                return 3 + (5 * hill_type), 1
-            elif hills_around[5] == -1 and hills_around[7] == -1:
-                return 4 + (5 * hill_type), 1
-            elif hills_around[1] == -1 and hills_around[5] == -1:
-                return 2 + (5 * hill_type), 1
+            if hills_around[1] == 0 and hills_around[3] == -1 and hills_around[7] == 0:
+                return "hi", 1 + (5 * hill_type), 0
+            if hills_around[3] == 0 and hills_around[5] == 0 and hills_around[7] == -1:
+                return "hi", 4 + (5 * hill_type), 0
+            if hills_around[1] == 0 and hills_around[5] == -1 and hills_around[7] == 0:
+                return "hi", 2 + (5 * hill_type), 0
+            if hills_around[1] == -1 and hills_around[3] == 0 and hills_around[5] == 0:
+                return "hi", 3 + (5 * hill_type), 0
+            if hills_around[1] == -1 and hills_around[3] == -1:
+                return "hi", 1 + (5 * hill_type), 1
+            if hills_around[3] == -1 and hills_around[7] == -1:
+                return "hi", 3 + (5 * hill_type), 1
+            if hills_around[5] == -1 and hills_around[7] == -1:
+                return "hi", 4 + (5 * hill_type), 1
+            if hills_around[1] == -1 and hills_around[5] == -1:
+                return "hi", 2 + (5 * hill_type), 1
             return -1
 
         hills = pygame.image.load(os.path.join("img", "hills.png"))
@@ -154,10 +153,48 @@ class Screen:
                             self.map.tile_height_info[y][x] = 9
                         tile_coo = define_hill_edge_texture(x, y)
                         if tile_coo != -1:
-                            tile_x, tile_y = tile_coo
+                            tile_x, tile_y = tile_coo[1], tile_coo[2]
                             self.surface.blit(hills, (blit_x, blit_y), (tile_x * 16, tile_y * 16, 16, 16))
                         else:
                             self.surface.blit(plants, (blit_x, blit_y), (0, 96, 16, 16))
+
+    def smooth_height(self, down=False):
+        smooth = False
+        while not smooth:
+            smooth = True
+            for y in range(self.map.size_y):
+                for x in range(self.map.size_x):
+                    smooth_tile = self.smooth_down(x, y) if down else self.smooth_up(x, y)
+                    if not smooth_tile:
+                        smooth = False
+
+    def smooth_down(self, x, y):
+        center_height = self.map.tile_height_info[y][x]
+        for test_y in range(y - 1, y + 2):
+            for test_x in range(x - 1, x + 2):
+                try:
+                    test_height = self.map.tile_height_info[test_y][test_x]
+                    if center_height - test_height > 1:
+                        self.map.tile_height_info[y][x] = test_height + 1
+                        center_height -= test_height + 1
+                        return False
+                except IndexError:
+                    pass
+        return True
+
+    def smooth_up(self, x, y):
+        smooth = True
+        center_height = self.map.tile_height_info[y][x]
+        for test_y in range(y - 1, y + 2):
+            for test_x in range(x - 1, x + 2):
+                try:
+                    test_height = self.map.tile_height_info[test_y][test_x]
+                    if center_height - test_height > 1:
+                        self.map.tile_height_info[test_y][test_x] = center_height - 1
+                        smooth = False
+                except IndexError:
+                    pass
+        return smooth
 
     def draw_black_border(self, pos_x, pos_y, size_x, size_y):
         pygame.draw.rect(self.surface, BLACK, (pos_x - 9, pos_y - 9, size_x * 16 + 19, size_y * 16 + 19), 16)
@@ -192,6 +229,8 @@ def main():
                     vis = "m"
                 if event.key == key("h"):
                     vis = "heights"
+                if event.key == key("s"):
+                    window.smooth_height()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not dragging and mode == "drag":
                     dragging = True
@@ -199,8 +238,10 @@ def main():
                 if mode == "paint":
                     if event.button == 1:
                         window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, 1)
+                        window.smooth_height(down=False)
                     if event.button == 3:
                         window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, -1)
+                        window.smooth_height(down=True)
             if event.type == pygame.MOUSEMOTION:
                 if dragging:
                     end_x, end_y = pygame.mouse.get_pos()
