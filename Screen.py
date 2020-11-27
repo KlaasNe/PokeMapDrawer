@@ -59,7 +59,7 @@ class Screen:
         for y_tile in range(brush):
             for x_tile in range(brush):
                 try:
-                    if relative == -1 or self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] == relative:
+                    if relative == -1 or (self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] <= relative and lift > 0) or (self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] >= relative and lift < 0):
                         self.map.tile_height_info[(y - y_off - y_pos) // 16 + y_tile][(x - x_off - x_pos) // 16 + x_tile] += lift
                 except IndexError:
                     pass
@@ -246,14 +246,16 @@ def main():
                     dragging = True
                     if mode == "drag":
                         m_start_x, m_start_y = pygame.mouse.get_pos()
-                if mode == "hill_paint":
+                if "hill_paint" in mode:
                     drag_height = window.get_tile_height_under_mouse(draw_window_x, draw_window_y, x_offset, y_offset)
                     if event.button == 1:
                         window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, 1)
                         window.smooth_height(down=False)
+                        mode = "hill_paint_up"
                     if event.button == 3:
                         window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, -1)
                         window.smooth_height(down=True)
+                        mode = "hill_paint_down"
             if event.type == pygame.MOUSEMOTION:
                 if dragging:
                     if mode == "drag":
@@ -262,14 +264,18 @@ def main():
                         x_offset += x_off_delta
                         y_offset += y_off_delta
                         m_start_x, m_start_y = pygame.mouse.get_pos()
-                    elif mode == "hill_paint":
+                    elif mode == "hill_paint_up":
                         if window.get_tile_height_under_mouse(draw_window_x, draw_window_y, x_offset, y_offset) <= drag_height + 1:
                             window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, 1, drag_height)
                             window.smooth_height(down=False)
+                    elif mode == "hill_paint_down":
+                        if window.get_tile_height_under_mouse(draw_window_x, draw_window_y, x_offset, y_offset) >= drag_height - 1:
+                            window.change_tile_height(draw_window_x, draw_window_y, x_offset, y_offset, brush_size, -1, drag_height)
+                            window.smooth_height(down=True)
             if event.type == pygame.MOUSEBUTTONUP:
                 dragging = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if mode == "hill_paint":
+                if "hill_paint" in mode:
                     if event.button == 4:
                         brush_size += 1
                     elif event.button == 5:
@@ -282,7 +288,7 @@ def main():
             window.draw_mountains(draw_window_x, draw_window_y, 80, 60, x_offset, y_offset, 0)
         elif vis == "heights":
             window.draw_height_map(draw_window_x, draw_window_y, 80, 60, x_offset, y_offset)
-        if mode == "hill_paint":
+        if "hill_paint" in mode:
             window.draw_cursor(x_offset, y_offset, RED, brush_size)
         window.draw_black_border(draw_window_x, draw_window_y, 80, 60)
         pygame.display.flip()
